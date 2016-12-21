@@ -91,7 +91,6 @@ class User(UserMixin, db.Model):
         if self.username is not None and self.secret_hash is None:
             self.secret_hash = hashlib.sha1(
                 self.username.encode('utf-8')).hexdigest()
-        self.followed.append(Follow(followed=self))
 
     @property
     def password(self):

@@ -4,7 +4,7 @@ from flask_login import login_user, logout_user, login_required, \
 from . import admin
 from .. import db
 from ..models import User
-from .forms import LoginForm #, RegistrationForm, ChangePasswordForm,\
+from .forms import LoginForm, RegistrationForm #, ChangePasswordForm,\
 #     PasswordResetRequestForm, PasswordResetForm, ChangeEmailForm
 
 @admin.route('/login', methods=['GET', 'POST'])
@@ -29,23 +29,21 @@ def logout():
 @login_required
 def index():
     form = PostForm()
-    if current_user.can(Permission.WRITE_ARTICLES) and \
+    if current_user.can(Permission.VIEWHISTORY) and \
             form.validate_on_submit():
-        post = Post(body=form.body.data,
-                    author=current_user._get_current_object())
-        db.session.add(post)
         return redirect(url_for('.index'))
-    page = request.args.get('page', 1, type=int)
-    show_followed = False
-    if current_user.is_authenticated:
-        show_followed = bool(request.cookies.get('show_followed', ''))
-    if show_followed:
-        query = current_user.followed_posts
-    else:
-        query = Post.query
-    pagination = query.order_by(Post.timestamp.desc()).paginate(
-        page, per_page=current_app.config['FLASKY_POSTS_PER_PAGE'],
-        error_out=False)
-    posts = pagination.items
     return render_template('admin/index.html', form=form, posts=posts,
                            show_followed=show_followed, pagination=pagination)
+
+
+@admin.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        user = User(username=form.username.data,
+                    password=form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash('A confirmation email has been sent to you by email.')
+        return redirect(url_for('admin.login'))
+    return render_template('admin/register.html', form=form)
