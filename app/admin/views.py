@@ -3,8 +3,8 @@ from flask_login import login_user, logout_user, login_required, \
     current_user
 from . import admin
 from .. import db
-from ..models import User
-from .forms import LoginForm, RegistrationForm #, ChangePasswordForm,\
+from ..models import Permission, Role, User
+from .forms import LoginForm, RegistrationForm, SouPlusForm#, ChangePasswordForm,\
 #     PasswordResetRequestForm, PasswordResetForm, ChangeEmailForm
 
 @admin.route('/login', methods=['GET', 'POST'])
@@ -18,6 +18,7 @@ def login():
         flash('Invalid username or password.')
     return render_template('admin/login.html', form=form)
 
+
 @admin.route('/logout')
 @login_required
 def logout():
@@ -25,15 +26,14 @@ def logout():
     flash('You have been logged out.')
     return redirect(url_for('admin.login'))
 
+
 @admin.route('/', methods=['GET', 'POST'])
 @login_required
 def index():
-    form = PostForm()
     if current_user.can(Permission.VIEWHISTORY) and \
             form.validate_on_submit():
         return redirect(url_for('.index'))
-    return render_template('admin/index.html', form=form, posts=posts,
-                           show_followed=show_followed, pagination=pagination)
+    return render_template('admin/index.html')
 
 
 @admin.route('/register', methods=['GET', 'POST'])
@@ -44,6 +44,13 @@ def register():
                     password=form.password.data)
         db.session.add(user)
         db.session.commit()
-        flash('A confirmation email has been sent to you by email.')
         return redirect(url_for('admin.login'))
     return render_template('admin/register.html', form=form)
+
+@admin.route('/order', methods=['GET', 'POST'])
+def order():
+    form = SouPlusForm()
+    if form.validate_on_submit(): #and \
+           # form.validate_on_submit():
+        pass
+    return render_template('admin/order.html', form=form)

@@ -1,0 +1,11 @@
+{% macro render_text_field(field) %}
+  <div class="form-group {% if field.errors %}has-error{% endif %} {% if field.flags.required %}required{% endif %}">
+    <label class="control-label" for="{{ field.label.text }}">{{ field.label }}</label>
+    <input class="form-control" id="{{ field.label.name }}" name="{{ field.name }}" {% if field.flags.required %}required=""{% endif %} type="text" value="{% if field.data %} {{ field.data }} {% endif %}">
+    {% if field.errors %}
+      {% for error in field.errors %}
+        <p class="help-block">{{ error }}</p>
+      {% endfor %}
+    {% endif %}
+  </div>
+{% endmacro %}
