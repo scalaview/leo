@@ -1,0 +1,38 @@
+{
+    "development": {
+        "database": "",
+        "hostname": "127.0.0.1",
+        "port": 3306,
+        "username": "root",
+        "password": "",
+        "max_page": 2,
+        "page_limit": 20,
+        "appkey": "",
+        "appsecret": "",
+        "cookie": ""
+    },
+    "staging": {
+        "database": "",
+        "hostname": "127.0.0.1",
+        "port": 3306,
+        "username": "root",
+        "password": "",
+        "max_page": 2,
+        "page_limit": 20,
+        "appkey": "",
+        "appsecret": "",
+        "cookie": ""
+    },
+    "production": {
+        "database": "",
+        "hostname": "127.0.0.1",
+        "port": 3306,
+        "username": "root",
+        "password": "",
+        "max_page": 2,
+        "page_limit": 20,
+        "appkey": "",
+        "appsecret": "",
+        "cookie": ""
+    }
+}
