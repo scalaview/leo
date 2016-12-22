@@ -1,1 +1,4 @@
 Generic single-database configuration.
+
+python3 manage.py db upgrade
+python3 manage.py db revision --autogenerate -m "xxxx"

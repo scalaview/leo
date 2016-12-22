@@ -13,16 +13,19 @@ class Permission:
     VIEWHISTORY = 0x03
     EDITORDER = 0x04
 
-
-class Role(db.Model):
-    __tablename__ = 'roles'
+class BaseModel(object):
     id = db.Column(db.Integer, primary_key=True)
+    createdAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now)
+    updatedAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now, onupdate=datetime.now)
+
+
+
+class Role(BaseModel, db.Model):
+    __tablename__ = 'roles'
     name = db.Column(db.String(64), unique=True)
     default = db.Column(db.Boolean, default=False, index=True)
     permissions = db.Column(db.Integer)
     users = db.relationship('User', backref='role', lazy='dynamic')
-    createdAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now)
-    updatedAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now, onupdate=datetime.now)
 
     @staticmethod
     def insert_roles():
@@ -46,9 +49,8 @@ class Role(db.Model):
     def __repr__(self):
         return '<Role %r>' % self.name
 
-class User(UserMixin, db.Model):
+class User(BaseModel, UserMixin, db.Model):
     __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, index=True)
     email = db.Column(db.String(64), index=True)
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
@@ -58,8 +60,6 @@ class User(UserMixin, db.Model):
     member_since = db.Column(db.DateTime(), default=datetime.utcnow)
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow)
     secret_hash = db.Column(db.String(64))
-    createdAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now)
-    updatedAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now, onupdate=datetime.now)
 
     @staticmethod
     def generate_fake(count=100):
@@ -221,3 +221,52 @@ class Command(db.Model):
 class SequelizeMeta(db.Model):
     __tablename__ = 'SequelizeMeta'
     name = db.Column(db.String(255), primary_key=True, nullable=False, unique=True)
+
+
+class OperationRecord(BaseModel, db.Model):
+    __tablename__ = 'operation_records'
+    model_type = db.Column(db.String(32), nullable=False)
+    model_type_id = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Integer, nullable=False)
+
+    @property
+    def target(self):
+        if self.model_type == 'Commands':
+            return Command.query.join(OperationRecord, OperationRecord.model_type_id == Command.id)\
+                .filter(OperationRecord.model_type == "Commands").first()
+        elif self.model_type == 'orders':
+            return Order.query.join(OperationRecord, OperationRecord.model_type_id == Order.id)\
+                .filter(OperationRecord.model_type == "orders").first()
+
+    @property
+    def user(self):
+        if self.id is not None:
+            return User.query.filter_by(id=self.user_id).first()
+
+
+class Product(BaseModel, db.Model):
+    __tablename__ = 'products'
+    name = db.Column(db.String(255))
+    price = db.Column(db.Numeric(precision=8, scale=2, asdecimal=False, decimal_return_scale=None), default=0.00)
+    purchase_price = db.Column(db.Numeric(precision=8, scale=2, asdecimal=False, decimal_return_scale=None) , default=0.00)
+
+
+class OrderState(object):
+    INIT = (0x00, "init")
+    RUNNING = (0x01, "runnint")
+    SUCCESS = (0x02, "success")
+    FAIL = (0x03, "fail")
+    REFUND = (0x04, "refund")
+
+
+class Order(BaseModel, db.Model):
+    __tablename__ = 'orders'
+    total = db.Column(db.Numeric(precision=8, scale=2, asdecimal=False, decimal_return_scale=None), default=0.00)
+    cost = db.Column(db.Numeric(precision=8, scale=2, asdecimal=False, decimal_return_scale=None), default=0.00)
+    items = db.relationship('OrderItem', backref='order', lazy='dynamic')
+    state = db.Column(db.Integer, nullable=False, default=0)
+
+class OrderItem(BaseModel, db.Model):
+    __tablename__ = 'order_items'
+    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
