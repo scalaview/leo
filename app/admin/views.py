@@ -85,3 +85,35 @@ def souplus_records():
             'next': "",
             'items': result
         })
+
+@admin.route('/souplus_send_code', methods=['POST'])
+def souplus_send_code():
+    form = SouPlusForm()
+    form.phone.data = request.form.get("phone")
+    form.validate()
+    if not form.phone.errors:
+        print(OperationRecord.can_do())
+        if OperationRecord.can_do():
+            command = Command(namespace="souPlus", funName="getCode",\
+                argsCode="11, %s"%form.phone.data)
+            db.session.add(command)
+            db.session.commit()
+
+            record = OperationRecord(model_type="Commands", model_type_id=command.id,\
+                user_id=current_user.get_id())
+            db.session.add(record)
+            db.session.commit()
+            return jsonify({
+                'err': 0,
+                'msg': "短信已提交"
+            })
+        else:
+            return jsonify({
+                'err': 1,
+                'msg': "请求过于频繁"
+            })
+    else:
+        return jsonify({
+            'err': 1,
+            'msg': form.phone.errors[0]
+        })

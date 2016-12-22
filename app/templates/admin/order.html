@@ -14,8 +14,8 @@
         <div class="col-md-5 col-xs-8">
           {{ render_text_field(form.vertify) }}
         </div>
-        <div class="col-md-5 col-sm-4">
-          <button style="margin-top: 30px" type="button" class="btn btn-primary pull-right">Primary</button>
+        <div id="msg-btn" class="col-md-5 col-sm-4">
+          <button @click="send" style="margin-top: 30px" type="button" class="btn btn-default pull-right" ><% msg %></button>
         </div>
       </div>
 

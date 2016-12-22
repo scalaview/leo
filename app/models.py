@@ -260,6 +260,14 @@ class OperationRecord(BaseModel, db.Model):
         or_filters = [text("model_type='%s'"%type) for type in types]
         return OperationRecord.query.filter(or_(*or_filters)).filter_by(user_id=user_id)
 
+    @staticmethod
+    def can_do():
+        return not Command.query.join(OperationRecord, OperationRecord.model_type_id == Command.id)\
+            .filter(OperationRecord.model_type == "Commands")\
+            .filter(Command.namespace == "souPlus")\
+            .filter(text("DATE_ADD(Commands.createdAt, INTERVAL 1 MINUTE) > NOW()"))\
+            .order_by(Command.createdAt.desc())\
+            .all()
 
 
 class Product(BaseModel, db.Model):
