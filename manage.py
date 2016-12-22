@@ -13,6 +13,7 @@ from app.models import User, Role, Permission, Command, OperationRecord, Command
     Product, OrderState, Order, OrderItem
 from flask_script import Manager, Shell, Server
 from flask_migrate import Migrate, MigrateCommand
+from flask_sqlalchemy import get_debug_queries
 
 app = create_app(os.getenv('LEO_CONFIG') or 'default')
 manager = Manager(app)
@@ -20,7 +21,7 @@ migrate = Migrate(app, db)
 
 
 def make_shell_context():
-    return dict(app=app, db=db, User=User, Role=Role, Permission=Permission,\
+    return dict(get_debug_queries=get_debug_queries, app=app, db=db, User=User, Role=Role, Permission=Permission,\
         Command=Command, OperationRecord=OperationRecord)
 manager.add_command("shell", Shell(make_context=make_shell_context))
 manager.add_command('db', MigrateCommand)

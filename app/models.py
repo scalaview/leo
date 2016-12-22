@@ -6,6 +6,7 @@ from flask import current_app, request, url_for
 from flask_login import UserMixin, AnonymousUserMixin
 from . import db, login_manager
 from sqlalchemy.dialects import mysql
+from sqlalchemy import or_, text
 
 class Permission:
     ADMINISTER = 0x01
@@ -217,6 +218,17 @@ class Command(db.Model):
     createdAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now)
     updatedAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now, onupdate=datetime.now)
 
+    STATUS = {
+        0: "初始化",
+        1: "正在运行",
+        2: "运行成功",
+        3: "运行失败",
+    }
+
+    @staticmethod
+    def state_name(state):
+        return Command.STATUS.get(state, "运行失败")
+
 
 class SequelizeMeta(db.Model):
     __tablename__ = 'SequelizeMeta'
@@ -242,6 +254,12 @@ class OperationRecord(BaseModel, db.Model):
     def user(self):
         if self.id is not None:
             return User.query.filter_by(id=self.user_id).first()
+
+    @staticmethod
+    def user_records(types, user_id):
+        or_filters = [text("model_type='%s'"%type) for type in types]
+        return OperationRecord.query.filter(or_(*or_filters)).filter_by(user_id=user_id)
+
 
 
 class Product(BaseModel, db.Model):

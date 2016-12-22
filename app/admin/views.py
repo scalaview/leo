@@ -1,11 +1,12 @@
-from flask import render_template, redirect, request, url_for, flash
+from flask import render_template, redirect, request, url_for, flash, jsonify, current_app
 from flask_login import login_user, logout_user, login_required, \
     current_user
 from . import admin
 from .. import db
-from ..models import Permission, Role, User
+from ..models import Permission, Role, User, OperationRecord, Command
 from .forms import LoginForm, RegistrationForm, SouPlusForm#, ChangePasswordForm,\
 #     PasswordResetRequestForm, PasswordResetForm, ChangeEmailForm
+from sqlalchemy import or_, text
 
 @admin.route('/login', methods=['GET', 'POST'])
 def login():
@@ -48,9 +49,39 @@ def register():
     return render_template('admin/register.html', form=form)
 
 @admin.route('/order', methods=['GET', 'POST'])
+@login_required
 def order():
     form = SouPlusForm()
     if form.validate_on_submit(): #and \
            # form.validate_on_submit():
         pass
     return render_template('admin/order.html', form=form)
+
+
+@admin.route('/souplus_records', methods=['GET'])
+@login_required
+def souplus_records():
+    types = request.args.get("types", ['orders', 'Commands'])
+    page = request.args.get("page", 1, int)
+    or_filters = [text("operation_records.model_type='%s'"%type) for type in types]
+    pagination = OperationRecord.query.join(Command, Command.id == OperationRecord.model_type_id)\
+                    .filter(OperationRecord.model_type == "Commands")\
+                    .filter(or_(*or_filters)).filter(OperationRecord.user_id == current_user.get_id())\
+                    .filter(Command.namespace == "souPlus")\
+                    .order_by(OperationRecord.createdAt)\
+                    .paginate(page, per_page=current_app.config['FLASKY_POSTS_PER_PAGE'],
+                        error_out=False)
+    records = pagination.items
+    result = []
+    for item in records:
+        term = item.target()
+        if term is not None:
+            result.append({
+                    phone: term.argsCode.split(',')[0],
+                    msg: Command.state_name(term.state)
+                })
+
+    return jsonify({
+            'next': "",
+            'items': result
+        })
