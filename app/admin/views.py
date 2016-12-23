@@ -8,6 +8,13 @@ from .forms import LoginForm, RegistrationForm, SouPlusForm#, ChangePasswordForm
 #     PasswordResetRequestForm, PasswordResetForm, ChangeEmailForm
 from sqlalchemy import or_, text
 
+
+@admin.before_app_request
+def before_request():
+    if current_user.is_authenticated:
+        current_user.ping()
+
+
 @admin.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()

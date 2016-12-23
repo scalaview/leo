@@ -240,6 +240,8 @@ class OperationRecord(BaseModel, db.Model):
     model_type = db.Column(db.String(32), nullable=False)
     model_type_id = db.Column(db.Integer, nullable=False)
     user_id = db.Column(db.Integer, nullable=False)
+    operation_type = db.Column(db.String(32))
+    operation_type_value = db.Column(db.String(32))
 
     @property
     def target(self):
