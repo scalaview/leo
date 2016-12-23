@@ -246,10 +246,9 @@ class OperationRecord(BaseModel, db.Model):
     @property
     def target(self):
         if self.model_type == 'Commands':
-            return Command.query.join(OperationRecord, OperationRecord.model_type_id == Command.id)\
-                .filter(OperationRecord.model_type == "Commands").first()
+            return Command.query.get(self.model_type_id)
         elif self.model_type == 'orders':
-            return Order.query.join(OperationRecord, OperationRecord.model_type_id == Order.id)\
+            return Order.query.join(OperationRecord, OperationRecord.model_type_id == self.model_type_id)\
                 .filter(OperationRecord.model_type == "orders").first()
 
     @property
@@ -263,10 +262,12 @@ class OperationRecord(BaseModel, db.Model):
         return OperationRecord.query.filter(or_(*or_filters)).filter_by(user_id=user_id)
 
     @staticmethod
-    def can_do():
+    def can_do(operation_type, operation_type_value, namespace):
         return not Command.query.join(OperationRecord, OperationRecord.model_type_id == Command.id)\
             .filter(OperationRecord.model_type == "Commands")\
-            .filter(Command.namespace == "souPlus")\
+            .filter(OperationRecord.operation_type == operation_type)\
+            .filter(OperationRecord.operation_type_value == operation_type_value)\
+            .filter(Command.namespace == namespace)\
             .filter(text("DATE_ADD(Commands.createdAt, INTERVAL 1 MINUTE) > NOW()"))\
             .order_by(Command.createdAt.desc())\
             .all()
@@ -275,16 +276,23 @@ class OperationRecord(BaseModel, db.Model):
 class Product(BaseModel, db.Model):
     __tablename__ = 'products'
     name = db.Column(db.String(255))
+    code = db.Column(db.String(64), unique=True, nullable=False)
     price = db.Column(db.Numeric(precision=8, scale=2, asdecimal=False, decimal_return_scale=None), default=0.00)
     purchase_price = db.Column(db.Numeric(precision=8, scale=2, asdecimal=False, decimal_return_scale=None) , default=0.00)
+    order_items = db.relationship('OrderItem', backref='product', lazy='dynamic')
 
+    @staticmethod
+    def insert_products():
+        product = Product(name="南方Plus-问答移动200M", code="souPlus-11-200M")
+        db.session.add(product)
+        db.session.commit()
 
 class OrderState(object):
-    INIT = (0x00, "init")
-    RUNNING = (0x01, "runnint")
-    SUCCESS = (0x02, "success")
-    FAIL = (0x03, "fail")
-    REFUND = (0x04, "refund")
+    INIT = (0, "init")
+    RUNNING = (1, "runnint")
+    SUCCESS = (2, "success")
+    FAIL = (3, "fail")
+    REFUND = (4, "refund")
 
 
 class Order(BaseModel, db.Model):
@@ -294,7 +302,20 @@ class Order(BaseModel, db.Model):
     items = db.relationship('OrderItem', backref='order', lazy='dynamic')
     state = db.Column(db.Integer, nullable=False, default=0)
 
+    def calculate_total(self):
+        if self.items.count() > 0:
+            self.total = 0
+            self.cost = 0
+            for item in self.items.all():
+                self.total = self.total + item.get_product.price
+                self.cost = self.cost + item.get_product.purchase_price
+
+
 class OrderItem(BaseModel, db.Model):
     __tablename__ = 'order_items'
     order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+
+    @property
+    def get_product(self):
+        return Product.query.get(self.product_id)

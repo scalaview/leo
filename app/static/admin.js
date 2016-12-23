@@ -3,20 +3,35 @@ window.isMobile = function (mobile) {
     return (mobile !== undefined && mobile !== '' && reg.test(mobile))
 }
 
-new Vue({
+var records = new Vue({
     el: '#records',
     delimiters: ['<%', '%>'],
     data: {
-        items: [{phone: 1234, msg: "23445"}]
-    },
-    ready : function(){
-
+        items: [],
+        fresh_class: 'glyphicon glyphicon-refresh'
     },
     methods: {
       loadRecords: function(){
-        this.$http.get('/api/v1_users', function(v1users){
-            this.$set('v1_user',v1users);
-        });
+        var that = this
+        this.startLoading()
+        $.ajax({
+          url: "/admin/souplus_records",
+          method: 'GET'
+        }).success(function(data){
+          that.stopLoading()
+          if(data.items){
+            that.items = data.items
+          }
+        }).fail(function(err){
+          that.stopLoading()
+          toastr.error("server error")
+        })
+      },
+      startLoading: function(){
+        this.fresh_class = "glyphicon glyphicon-refresh glyphicon-refresh-animate"
+      },
+      stopLoading: function(){
+        this.fresh_class = "glyphicon glyphicon-refresh"
       }
     }
 })
@@ -55,7 +70,7 @@ new Vue({
               method: "POST",
               dataType: "JSON",
               data: {
-                phone: '11111111111'
+                phone: phone
               }
             }).success(function(data){
               if (data.err) {
@@ -82,3 +97,5 @@ new Vue({
         }
     }
 })
+
+records.loadRecords()

@@ -3,11 +3,12 @@ from flask_login import login_user, logout_user, login_required, \
     current_user
 from . import admin
 from .. import db
-from ..models import Permission, Role, User, OperationRecord, Command
+from ..models import Permission, Role, User, OperationRecord, Command, Product\
+        ,OrderState, Order, OrderItem
 from .forms import LoginForm, RegistrationForm, SouPlusForm#, ChangePasswordForm,\
 #     PasswordResetRequestForm, PasswordResetForm, ChangeEmailForm
 from sqlalchemy import or_, text
-
+from flask_sqlalchemy import get_debug_queries
 
 @admin.before_app_request
 def before_request():
@@ -55,37 +56,54 @@ def register():
         return redirect(url_for('admin.login'))
     return render_template('admin/register.html', form=form)
 
-@admin.route('/order', methods=['GET', 'POST'])
+@admin.route('/souplus_11_give', methods=['GET', 'POST'])
 @login_required
 def order():
     form = SouPlusForm()
-    if form.validate_on_submit(): #and \
-           # form.validate_on_submit():
-        pass
+
+    if form.validate_on_submit():
+        if OperationRecord.can_do("order", form.phone.data, "souPlus"):
+            command = Command(namespace="souPlus", funName="gift",\
+                argsCode="11, %s, %s"%(form.phone.data, form.vertify.data) )
+            db.session.add(command)
+            db.session.commit()
+
+            record = OperationRecord(model_type="Commands", model_type_id=command.id,\
+                user_id=current_user.get_id(), operation_type="order", operation_type_value=form.phone.data)
+            product = Product.query.filter_by(code="souPlus-11-200M").first_or_404()
+            order = Order(state=OrderState.INIT[0])
+            item = OrderItem(product_id=product.id)
+            order.items.append(item)
+            order.calculate_total()
+            db.session.add(record)
+            db.session.add(item)
+            db.session.add(order)
+            db.session.commit()
     return render_template('admin/order.html', form=form)
 
 
 @admin.route('/souplus_records', methods=['GET'])
 @login_required
 def souplus_records():
-    types = request.args.get("types", ['orders', 'Commands'])
     page = request.args.get("page", 1, int)
+    types = request.args.get("types", ['orders', 'Commands'])
     or_filters = [text("operation_records.model_type='%s'"%type) for type in types]
     pagination = OperationRecord.query.join(Command, Command.id == OperationRecord.model_type_id)\
                     .filter(OperationRecord.model_type == "Commands")\
+                    .filter(or_(OperationRecord.operation_type == "order", OperationRecord.operation_type == "phone"))\
                     .filter(or_(*or_filters)).filter(OperationRecord.user_id == current_user.get_id())\
                     .filter(Command.namespace == "souPlus")\
-                    .order_by(OperationRecord.createdAt)\
+                    .order_by(OperationRecord.createdAt.desc())\
                     .paginate(page, per_page=current_app.config['FLASKY_POSTS_PER_PAGE'],
                         error_out=False)
     records = pagination.items
     result = []
     for item in records:
-        term = item.target()
+        term = item.target
         if term is not None:
             result.append({
-                    phone: term.argsCode.split(',')[0],
-                    msg: Command.state_name(term.state)
+                    'phone': item.operation_type_value,
+                    'msg': Command.state_name(term.state)
                 })
 
     return jsonify({
@@ -99,15 +117,14 @@ def souplus_send_code():
     form.phone.data = request.form.get("phone")
     form.validate()
     if not form.phone.errors:
-        print(OperationRecord.can_do())
-        if OperationRecord.can_do():
+        if OperationRecord.can_do("phone", form.phone.data, "souPlus"):
             command = Command(namespace="souPlus", funName="getCode",\
                 argsCode="11, %s"%form.phone.data)
             db.session.add(command)
             db.session.commit()
 
             record = OperationRecord(model_type="Commands", model_type_id=command.id,\
-                user_id=current_user.get_id())
+                user_id=current_user.get_id(), operation_type="phone", operation_type_value=form.phone.data)
             db.session.add(record)
             db.session.commit()
             return jsonify({
@@ -124,3 +141,12 @@ def souplus_send_code():
             'err': 1,
             'msg': form.phone.errors[0]
         })
+
+
+@admin.after_app_request
+def after_request(response):
+    for query in get_debug_queries():
+        print('query: %s\nParameters: %s\nDuration: %fs\nContext: %s\n'%(query.statement,\
+            query.parameters, query.duration,\
+            query.context))
+        return response
