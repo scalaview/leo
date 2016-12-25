@@ -5,7 +5,8 @@ from . import admin
 from .. import db
 from ..models import Permission, Role, User, OperationRecord, Command, Product\
         ,OrderState, Order, OrderItem
-from .forms import LoginForm, RegistrationForm, SouPlusForm#, ChangePasswordForm,\
+from .forms import LoginForm, RegistrationForm, SouPlusForm,\
+    BalanceForm#, ChangePasswordForm,\
 #     PasswordResetRequestForm, PasswordResetForm, ChangeEmailForm
 from sqlalchemy import or_, text
 from flask_sqlalchemy import get_debug_queries
@@ -56,31 +57,41 @@ def register():
         return redirect(url_for('admin.login'))
     return render_template('admin/register.html', form=form)
 
-@admin.route('/souplus_11_give', methods=['GET', 'POST'])
+@admin.route('/souplus_eleven_give', methods=['GET', 'POST'])
 @login_required
-def order():
+def souplus_eleven_give():
     form = SouPlusForm()
 
     if form.validate_on_submit():
-        if OperationRecord.can_do("order", form.phone.data, "souPlus"):
-            command = Command(namespace="souPlus", funName="gift",\
-                argsCode="11, %s, %s"%(form.phone.data, form.vertify.data) )
-            db.session.add(command)
-            db.session.commit()
+        product = Product.query.filter_by(code="souPlus-11-200M").first_or_404()
 
-            record = OperationRecord(model_type="Commands", model_type_id=command.id,\
-                user_id=current_user.get_id(), operation_type="order", operation_type_value=form.phone.data)
-            product = Product.query.filter_by(code="souPlus-11-200M").first_or_404()
+        if OperationRecord.can_do("order", form.phone.data, "souPlus"):
             order = Order(state=OrderState.INIT[0])
             item = OrderItem(product_id=product.id)
             order.items.append(item)
-            order.calculate_total()
-            db.session.add(record)
-            db.session.add(item)
-            db.session.add(order)
-            db.session.commit()
-    return render_template('admin/order.html', form=form)
+            total = order.calculate_total()
 
+            if not current_user.is_enough(total):
+                flash("余额不足，请充值")
+            elif current_user.reduce_balance(total):
+                db.session.add(current_user)
+                db.session.add(item)
+                db.session.add(order)
+                db.session.commit()
+
+                command = Command(namespace="souPlus", funName="gift",\
+                    argsCode="11, %s, %s"%(form.phone.data, form.vertify.data) )
+                db.session.add(command)
+                db.session.commit()
+
+                record = OperationRecord(model_type="Commands", model_type_id=command.id,\
+                    user_id=current_user.get_id(), operation_type="order", operation_type_value=form.phone.data)
+                db.session.add(record)
+                db.session.commit()
+                flash("操作成功")
+        else:
+            flash("操作过于频繁")
+    return render_template('admin/order.html', form=form)
 
 @admin.route('/souplus_records', methods=['GET'])
 @login_required
@@ -143,10 +154,13 @@ def souplus_send_code():
         })
 
 
-@admin.after_app_request
-def after_request(response):
-    for query in get_debug_queries():
-        print('query: %s\nParameters: %s\nDuration: %fs\nContext: %s\n'%(query.statement,\
-            query.parameters, query.duration,\
-            query.context))
-        return response
+@admin.route('/user/<id>', methods=['GET', 'POST'])
+def user(id):
+    form = BalanceForm()
+    user = User.query.get(id)
+    if form.validate_on_submit():
+        user.balance = form.balance.data
+        db.session.add(user)
+        db.session.commit()
+        flash("update success")
+    return render_template('admin/user.html', form=form)

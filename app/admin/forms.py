@@ -1,6 +1,8 @@
 from flask_wtf import FlaskForm as Form
-from wtforms import StringField, PasswordField, BooleanField, SubmitField
-from wtforms.validators import Required, Length, Email, Regexp, EqualTo
+from wtforms import StringField, PasswordField, BooleanField, SubmitField,\
+    FloatField
+from wtforms.validators import Required, Length, Email, Regexp, EqualTo,\
+    NumberRange
 from wtforms import ValidationError
 from ..models import User
 
@@ -50,3 +52,9 @@ class SouPlusForm(BaseForm):
                                           'vertify must have only letters, '
                                           'numbers')])
     submit = SubmitField('Submit')
+
+class BalanceForm(BaseForm):
+    balance = FloatField('balance', validators=[
+        Required(), NumberRange(min=0, message="must greater than 0")])
+    submit = SubmitField('Submit')
+

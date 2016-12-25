@@ -61,6 +61,7 @@ class User(BaseModel, UserMixin, db.Model):
     member_since = db.Column(db.DateTime(), default=datetime.utcnow)
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow)
     secret_hash = db.Column(db.String(64))
+    balance = db.Column(db.Numeric(precision=8, scale=2, asdecimal=False, decimal_return_scale=None), default=0.00)
 
     @staticmethod
     def generate_fake(count=100):
@@ -192,6 +193,18 @@ class User(BaseModel, UserMixin, db.Model):
     def __repr__(self):
         return '<User %r>' % self.username
 
+    def is_enough(self, cost):
+        if self.balance is not None and self.balance >= cost:
+            return True
+        else:
+            return False
+
+    def reduce_balance(self, cost):
+        if self.balance >= cost:
+            self.balance = self.balance - cost
+            return True
+        else:
+            return False
 
 class AnonymousUser(AnonymousUserMixin):
     def can(self, permissions):
@@ -301,6 +314,7 @@ class Order(BaseModel, db.Model):
     cost = db.Column(db.Numeric(precision=8, scale=2, asdecimal=False, decimal_return_scale=None), default=0.00)
     items = db.relationship('OrderItem', backref='order', lazy='dynamic')
     state = db.Column(db.Integer, nullable=False, default=0)
+    phone = db.Column(db.String(255))
 
     def calculate_total(self):
         if self.items.count() > 0:
@@ -309,6 +323,7 @@ class Order(BaseModel, db.Model):
             for item in self.items.all():
                 self.total = self.total + item.get_product.price
                 self.cost = self.cost + item.get_product.purchase_price
+        return self.total
 
 
 class OrderItem(BaseModel, db.Model):

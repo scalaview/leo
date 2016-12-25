@@ -1,0 +1,14 @@
+{% extends "admin/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}Console{% endblock %}
+
+{% block page_content %}
+
+{% from "helpers/_formhelpers.html" import render_text_field %}
+<div class="row">
+  <div class="col-md-5 col-xs-12">
+    {{ wtf.quick_form(form) }}
+  </div>
+</div>
+{% endblock %}

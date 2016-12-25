@@ -8,7 +8,7 @@
 {% from "helpers/_formhelpers.html" import render_text_field %}
 <div class="row">
   <div class="col-md-5 col-xs-12">
-    <form method=post action="/admin/souplus_11_give">
+    <form method=post action="{{ url_for('admin.souplus_eleven_give') }}">
       {{ form.hidden_tag() }}
       {{ render_text_field(form.phone) }}
       <div class='row'>
