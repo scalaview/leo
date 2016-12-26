@@ -1,4 +1,5 @@
-from flask import render_template, redirect, request, url_for, flash, jsonify, current_app
+from flask import render_template, redirect, request, url_for, flash,\
+    jsonify, current_app, abort
 from flask_login import login_user, logout_user, login_required, \
     current_user
 from . import admin
@@ -16,6 +17,25 @@ def before_request():
     if current_user.is_authenticated:
         current_user.ping()
 
+@admin.errorhandler(401)
+def custom_401(error):
+    if not current_user.is_authenticated:
+        flash("login first")
+        return redirect(url_for("admin.login"))
+    else:
+        flash("permission deny")
+        return redirect(url_for("admin.index"))
+
+
+def can_do(permission):
+    if not current_user.is_authenticated:
+        abort(401)
+    elif current_user.is_administrator():
+        return True
+    elif current_user.can(permission):
+        return True
+    else:
+        abort(401)
 
 @admin.route('/login', methods=['GET', 'POST'])
 def login():
@@ -40,33 +60,41 @@ def logout():
 @admin.route('/', methods=['GET', 'POST'])
 @login_required
 def index():
-    if current_user.can(Permission.VIEWHISTORY) and \
-            form.validate_on_submit():
-        return redirect(url_for('.index'))
     return render_template('admin/index.html')
 
 
 @admin.route('/register', methods=['GET', 'POST'])
 def register():
-    form = RegistrationForm()
-    if form.validate_on_submit():
-        user = User(username=form.username.data,
-                    password=form.password.data)
-        db.session.add(user)
-        db.session.commit()
-        return redirect(url_for('admin.login'))
-    return render_template('admin/register.html', form=form)
+    count = User.query.count()
+    if count == 0 or (current_user.is_authenticated and current_user.is_administrator()):
+        form = RegistrationForm()
+        if form.validate_on_submit():
+            user = User(username=form.username.data,
+                        password=form.password.data)
+            role = Role.query.filter_by(name="Agent").first()
+            user.role = role
+            db.session.add(user)
+            db.session.commit()
+            flash("create user success")
+            if count == 0:
+                return redirect(url_for('admin.login'))
+        return render_template('admin/register.html', form=form)
+    else:
+        flash("Permission deny")
+        return redirect(url_for('admin.index'))
 
 @admin.route('/souplus_eleven_give', methods=['GET', 'POST'])
 @login_required
 def souplus_eleven_give():
+    can_do(Permission.ORDER)
     form = SouPlusForm()
 
     if form.validate_on_submit():
         product = Product.query.filter_by(code="souPlus-11-200M").first_or_404()
 
         if OperationRecord.can_do("order", form.phone.data, "souPlus"):
-            order = Order(state=OrderState.INIT[0])
+            order = Order(state=OrderState.INIT[0], phone=form.phone.data,\
+                user_id=current_user.get_id())
             item = OrderItem(product_id=product.id)
             order.items.append(item)
             total = order.calculate_total()
@@ -85,7 +113,7 @@ def souplus_eleven_give():
                 db.session.commit()
 
                 record = OperationRecord(model_type="Commands", model_type_id=command.id,\
-                    user_id=current_user.get_id(), operation_type="order", operation_type_value=form.phone.data)
+                    user_id=current_user.get_id(), operation_type="order", operation_type_value=order.id)
                 db.session.add(record)
                 db.session.commit()
                 flash("操作成功")
@@ -96,6 +124,8 @@ def souplus_eleven_give():
 @admin.route('/souplus_records', methods=['GET'])
 @login_required
 def souplus_records():
+    can_do(Permission.VIEWHISTORY)
+
     page = request.args.get("page", 1, int)
     types = request.args.get("types", ['orders', 'Commands'])
     or_filters = [text("operation_records.model_type='%s'"%type) for type in types]
@@ -112,8 +142,16 @@ def souplus_records():
     for item in records:
         term = item.target
         if term is not None:
+            if item.operation_type == "order":
+                order = Order.query.get(item.operation_type_value)
+                if order is not None:
+                    phone = order.phone
+                else:
+                    phone = item.operation_type_value
+            else:
+                phone = item.operation_type_value
             result.append({
-                    'phone': item.operation_type_value,
+                    'phone': phone,
                     'msg': Command.state_name(term.state)
                 })
 
@@ -124,6 +162,7 @@ def souplus_records():
 
 @admin.route('/souplus_send_code', methods=['POST'])
 def souplus_send_code():
+    can_do(Permission.ORDER)
     form = SouPlusForm()
     form.phone.data = request.form.get("phone")
     form.validate()
@@ -156,6 +195,7 @@ def souplus_send_code():
 
 @admin.route('/user/<id>', methods=['GET', 'POST'])
 def user(id):
+    can_do(Permission.ADMINISTER)
     form = BalanceForm()
     user = User.query.get(id)
     if form.validate_on_submit():
@@ -164,3 +204,14 @@ def user(id):
         db.session.commit()
         flash("update success")
     return render_template('admin/user.html', form=form)
+
+
+@admin.route('/orders', methods=['GET'])
+@login_required
+def orders():
+    page = request.args.get("page", 1, int)
+    pagination = current_user.orders().order_by(Order.updatedAt.desc())\
+        .paginate(page, per_page=current_app.config['FLASKY_POSTS_PER_PAGE'],
+            error_out=False)
+    orders = pagination.items
+    return render_template('admin/orders.html', orders=orders, pagination=pagination)

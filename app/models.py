@@ -7,17 +7,18 @@ from flask_login import UserMixin, AnonymousUserMixin
 from . import db, login_manager
 from sqlalchemy.dialects import mysql
 from sqlalchemy import or_, text
+import json
 
 class Permission:
-    ADMINISTER = 0x01
-    ORDER = 0x02
-    VIEWHISTORY = 0x03
-    EDITORDER = 0x04
+    ADMINISTER = 1
+    ORDER = 2
+    VIEWHISTORY = 3
+    EDITORDER = 4
 
 class BaseModel(object):
     id = db.Column(db.Integer, primary_key=True)
-    createdAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now)
-    updatedAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now, onupdate=datetime.now)
+    createdAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.utcnow)
+    updatedAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 
@@ -25,18 +26,30 @@ class Role(BaseModel, db.Model):
     __tablename__ = 'roles'
     name = db.Column(db.String(64), unique=True)
     default = db.Column(db.Boolean, default=False, index=True)
-    permissions = db.Column(db.Integer)
+    permissions_json = db.Column(db.String(255))
     users = db.relationship('User', backref='role', lazy='dynamic')
+
+    @property
+    def permissions(self):
+        if self.permissions_json is not None:
+            return json.loads(self.permissions_json)
+        else:
+            return []
+
+    @permissions.setter
+    def permissions(self, permissions_arr):
+        self.permissions_json = json.dumps(permissions_arr)
+
 
     @staticmethod
     def insert_roles():
         roles = {
-            'Agent': (Permission.ORDER |
-                     Permission.VIEWHISTORY, True),
-            'Moderator': (Permission.ORDER |
-                          Permission.VIEWHISTORY |
-                          Permission.EDITORDER, False),
-            'Administrator': (0xff, False)
+            'Agent': ([Permission.ORDER,\
+                     Permission.VIEWHISTORY], True),
+            'Moderator': ([Permission.ORDER,\
+                          Permission.VIEWHISTORY,\
+                          Permission.EDITORDER], False),
+            'Administrator': ([Permission.ADMINISTER], False)
         }
         for r in roles:
             role = Role.query.filter_by(name=r).first()
@@ -170,9 +183,9 @@ class User(BaseModel, UserMixin, db.Model):
             return None
         return User.query.get(data['id'])
 
-    def can(self, permissions):
+    def can(self, permission):
         return self.role is not None and \
-            (self.role.permissions & permissions) == permissions
+            ((permission in self.role.permissions) or (Permission.ADMINISTER in self.role.permissions) )
 
     def is_administrator(self):
         return self.can(Permission.ADMINISTER)
@@ -206,6 +219,10 @@ class User(BaseModel, UserMixin, db.Model):
         else:
             return False
 
+    def orders(self):
+        return Order.query.filter_by(user_id=self.id)
+
+
 class AnonymousUser(AnonymousUserMixin):
     def can(self, permissions):
         return False
@@ -228,8 +245,8 @@ class Command(db.Model):
     argsCode = db.Column(db.String(255))
     state = db.Column(db.Integer, default=0, nullable=False)
     resultCode = db.Column(db.String(255))
-    createdAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now)
-    updatedAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.now, onupdate=datetime.now)
+    createdAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.utcnow)
+    updatedAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     STATUS = {
         0: "初始化",
@@ -307,6 +324,14 @@ class OrderState(object):
     FAIL = (3, "fail")
     REFUND = (4, "refund")
 
+    STATUS = {
+        0: "init",
+        1: "runnint",
+        2: "success",
+        3: "fail",
+        4: "refund"
+    }
+
 
 class Order(BaseModel, db.Model):
     __tablename__ = 'orders'
@@ -315,6 +340,7 @@ class Order(BaseModel, db.Model):
     items = db.relationship('OrderItem', backref='order', lazy='dynamic')
     state = db.Column(db.Integer, nullable=False, default=0)
     phone = db.Column(db.String(255))
+    user_id = db.Column(db.Integer, nullable=False)
 
     def calculate_total(self):
         if self.items.count() > 0:
@@ -324,6 +350,18 @@ class Order(BaseModel, db.Model):
                 self.total = self.total + item.get_product.price
                 self.cost = self.cost + item.get_product.purchase_price
         return self.total
+
+    @property
+    def state_name(self):
+        return OrderState.STATUS.get(self.state)
+
+    @property
+    def user(self):
+        return User.query.get(self.user_id)
+
+    @user.setter
+    def user(self, user):
+        self.user_id = user.id
 
 
 class OrderItem(BaseModel, db.Model):

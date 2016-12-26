@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}Console{% endblock %}
+
+{% block page_content %}
+{% from "helpers/_formhelpers.html" import pagination_widget %}
+  {% for order in orders %}
+    <div class="row">
+      <div class="col-lg-12 col-sm-12">
+        <div class="row">
+          <div class="col-lg-3 col-sm-6">
+            {{ order.phone }}
+          </div>
+          <div class="col-lg-3 col-sm-6">
+            {% for item in order.items%}
+              <div class="row">
+                <div class="col-lg-12">{{ item.get_product.name }}</div>
+              </div>
+            {% endfor %}
+          </div>
+          <div class="col-lg-3 col-sm-6">{{ order.state_name }}</div>
+          <div class="col-lg-3 col-sm-6">{{ moment(order.updatedAt).format('YYYY/DD/MM HH:mm:ss') }}</div>
+        </div>
+      </div>
+      <hr>
+    </div>
+  {% endfor %}
+
+  {% if pagination %}
+  <div class="pagination">
+      {{ pagination_widget(pagination, '.index') }}
+  </div>
+  {% endif %}
+{% endblock %}
+
