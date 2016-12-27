@@ -19,7 +19,11 @@
               </div>
             {% endfor %}
           </div>
-          <div class="col-lg-3 col-sm-6">{{ order.state_name }}</div>
+          <div class="col-lg-3 col-sm-6">{{ order.state_name }}
+            {% if order.message %}
+              原因： {{ order.message }}
+            {% endif %}
+          </div>
           <div class="col-lg-3 col-sm-6">{{ moment(order.updatedAt).format('YYYY/DD/MM HH:mm:ss') }}</div>
         </div>
       </div>

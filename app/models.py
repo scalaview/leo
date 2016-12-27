@@ -334,8 +334,10 @@ class OperationRecord(BaseModel, db.Model):
                 order.state = OrderState.SUCCESS[0]
                 print("order.id: %d, update state to %s" % (order.id, OrderState.SUCCESS[1]) )
             elif command.state == Command.FAIL[0]:
+                result = json.loads(command.resultCode)
                 order.state = OrderState.REFUND[0]
-                print("order.id: %d, update state to %s" % (order.id, OrderState.REFUND[1]) )
+                order.message = result.get("data").get("msg")
+                print("order.id: %d, update state to %s" % (order.id, OrderState.REFUND[1] )
                 user = record.user
                 if not user.is_administrator():
                     user.add_balance(order.total)
@@ -386,6 +388,7 @@ class Order(BaseModel, db.Model):
     state = db.Column(db.Integer, nullable=False, default=0)
     phone = db.Column(db.String(255))
     user_id = db.Column(db.Integer, nullable=False)
+    message = db.Column(db.String(255))
 
     def calculate_total(self):
         if self.items.count() > 0:
