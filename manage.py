@@ -24,7 +24,7 @@ migrate = Migrate(app, db)
 def make_shell_context():
     return dict(get_debug_queries=get_debug_queries, app=app, db=db, User=User, Role=Role, \
         Product=Product, Permission=Permission, Command=Command, OperationRecord=OperationRecord, \
-        OrderItem=OrderItem,\
+        OrderItem=OrderItem, Order=Order, OrderState=OrderState,\
         LoginForm=LoginForm, RegistrationForm=RegistrationForm, SouPlusForm=SouPlusForm)
 manager.add_command("shell", Shell(make_context=make_shell_context))
 manager.add_command('db', MigrateCommand)

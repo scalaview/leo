@@ -219,6 +219,10 @@ class User(BaseModel, UserMixin, db.Model):
         else:
             return False
 
+    def add_balance(self, cost):
+        self.balance = self.balance + cost
+        return True
+
     def orders(self):
         return Order.query.filter_by(user_id=self.id)
 
@@ -248,6 +252,11 @@ class Command(db.Model):
     createdAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.utcnow)
     updatedAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    INIT = (0, "初始化")
+    RUNNING = (1, "正在运行")
+    SUCCESS = (2, "运行成功")
+    FAIL = (3, "运行失败")
+
     STATUS = {
         0: "初始化",
         1: "正在运行",
@@ -266,12 +275,15 @@ class SequelizeMeta(db.Model):
 
 
 class OperationRecord(BaseModel, db.Model):
+    INIT = 0
+    FINISH = 1
     __tablename__ = 'operation_records'
     model_type = db.Column(db.String(32), nullable=False)
     model_type_id = db.Column(db.Integer, nullable=False)
     user_id = db.Column(db.Integer, nullable=False)
     operation_type = db.Column(db.String(32))
     operation_type_value = db.Column(db.String(32))
+    state = db.Column(db.Integer, nullable=False, default=0)
 
     @property
     def target(self):
@@ -301,6 +313,39 @@ class OperationRecord(BaseModel, db.Model):
             .filter(text("DATE_ADD(Commands.createdAt, INTERVAL 1 MINUTE) > NOW()"))\
             .order_by(Command.createdAt.desc())\
             .all()
+
+    @staticmethod
+    def sync_souplus_orders():
+        records = OperationRecord.query.join(Command, Command.id == OperationRecord.model_type_id)\
+            .join(Order, Order.id == OperationRecord.operation_type_value)\
+            .filter(or_(Order.state == OrderState.INIT[0], Order.state == OrderState.RUNNING[0]))\
+            .filter(OperationRecord.model_type == "Commands")\
+            .filter(or_(Command.state == Command.SUCCESS[0], Command.state == Command.FAIL[0]))\
+            .filter(OperationRecord.state == OperationRecord.INIT)\
+            .filter(OperationRecord.operation_type == "order")\
+            .order_by(Command.createdAt.desc())\
+            .limit(100)
+
+        for record in records:
+            record.state = OperationRecord.FINISH
+            command = Command.query.get(record.model_type_id)
+            order = Order.query.get(record.operation_type_value)
+            if command.state == Command.SUCCESS[0]:
+                order.state = OrderState.SUCCESS[0]
+                print("order.id: %d, update state to %s" % (order.id, OrderState.SUCCESS[1]) )
+            elif command.state == Command.FAIL[0]:
+                order.state = OrderState.REFUND[0]
+                print("order.id: %d, update state to %s" % (order.id, OrderState.REFUND[1]) )
+                user = record.user
+                if not user.is_administrator():
+                    user.add_balance(order.total)
+                    print("user.id %d, add %d")
+                    db.session.add(user)
+            db.session.add(record)
+            db.session.add(order)
+            db.session.add(command)
+            db.session.commit()
+
 
 
 class Product(BaseModel, db.Model):
