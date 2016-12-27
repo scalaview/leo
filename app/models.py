@@ -337,7 +337,7 @@ class OperationRecord(BaseModel, db.Model):
                 result = json.loads(command.resultCode)
                 order.state = OrderState.REFUND[0]
                 order.message = result.get("data").get("msg")
-                print("order.id: %d, update state to %s" % (order.id, OrderState.REFUND[1] )
+                print("order.id: %d, update state to %s" % (order.id, OrderState.REFUND[1]) )
                 user = record.user
                 if not user.is_administrator():
                     user.add_balance(order.total)
