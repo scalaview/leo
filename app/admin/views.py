@@ -20,10 +20,10 @@ def before_request():
 @admin.errorhandler(401)
 def custom_401(error):
     if not current_user.is_authenticated:
-        flash("login first")
+        flash("请先登录")
         return redirect(url_for("admin.login"))
     else:
-        flash("permission deny")
+        flash("权限不足")
         return redirect(url_for("admin.index"))
 
 
@@ -49,7 +49,7 @@ def login():
         if user is not None and user.verify_password(form.password.data):
             login_user(user, form.remember_me.data)
             return redirect(request.args.get('next') or url_for('admin.index'))
-        flash('Invalid username or password.')
+        flash('用户名或密码错误')
     return render_template('admin/login.html', form=form)
 
 
@@ -57,7 +57,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash('You have been logged out.')
+    flash('登出成功.')
     return redirect(url_for('admin.login'))
 
 
@@ -79,12 +79,12 @@ def register():
             user.role = role
             db.session.add(user)
             db.session.commit()
-            flash("create user success")
+            flash("成功创建用户")
             if count == 0:
                 return redirect(url_for('admin.login'))
         return render_template('admin/register.html', form=form)
     else:
-        flash("Permission deny")
+        flash("权限不足")
         return redirect(url_for('admin.index'))
 
 @admin.route('/souplus_eleven_give', methods=['GET', 'POST'])
@@ -207,7 +207,7 @@ def user(id):
         user.balance = form.balance.data
         db.session.add(user)
         db.session.commit()
-        flash("update success")
+        flash("更新成功")
     return render_template('admin/user.html', form=form)
 
 
