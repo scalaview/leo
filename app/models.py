@@ -15,6 +15,7 @@ class Permission:
     VIEWHISTORY = 3
     EDITORDER = 4
 
+
 class BaseModel(object):
     id = db.Column(db.Integer, primary_key=True)
     createdAt = db.Column(mysql.DATETIME(), nullable=False, default=datetime.utcnow)
@@ -188,7 +189,8 @@ class User(BaseModel, UserMixin, db.Model):
             ((permission in self.role.permissions) or (Permission.ADMINISTER in self.role.permissions) )
 
     def is_administrator(self):
-        return self.can(Permission.ADMINISTER)
+        return self.is_authenticated and \
+            self.can(Permission.ADMINISTER)
 
     def ping(self):
         self.last_seen = datetime.utcnow()

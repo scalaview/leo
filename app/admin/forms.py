@@ -20,41 +20,41 @@ def my_strip_filter(value):
     return value
 
 class LoginForm(Form):
-    username = StringField('Username', validators=[
+    username = StringField('用户名', validators=[
         Required(), Length(1, 64), Regexp('^[A-Za-z][A-Za-z0-9_.]*$', 0,
-                                          'Usernames must have only letters, '
-                                          'numbers, dots or underscores')])
-    password = PasswordField('Password', validators=[Required()])
-    remember_me = BooleanField('Keep me logged in')
-    submit = SubmitField('Log In')
+                                          '用户名只能包含大小写字母, '
+                                          '数字、点和下划线')])
+    password = PasswordField('密 码', validators=[Required()])
+    remember_me = BooleanField('记住我')
+    submit = SubmitField('登 录')
 
 
 class RegistrationForm(Form):
-    username = StringField('Username', validators=[
+    username = StringField('用户名', validators=[
         Required(), Length(1, 64), Regexp('^[A-Za-z][A-Za-z0-9_.]*$', 0,
-                                          'Usernames must have only letters, '
-                                          'numbers, dots or underscores')])
-    password = PasswordField('Password', validators=[
-        Required(), EqualTo('password2', message='Passwords must match.')])
-    password2 = PasswordField('Confirm password', validators=[Required()])
-    submit = SubmitField('Register')
+                                          '用户名只能包含大小写字母,  '
+                                          '数字、点和下划线')])
+    password = PasswordField('密 码', validators=[
+        Required(), EqualTo('password2', message='两次输入的密码必须一致')])
+    password2 = PasswordField('确认密码', validators=[Required()])
+    submit = SubmitField('注 册')
 
     def validate_username(self, field):
         if User.query.filter_by(username=field.data).first():
-            raise ValidationError('Username already in use.')
+            raise ValidationError('用户名已经存在')
 
 class SouPlusForm(BaseForm):
-    phone = StringField('phone', validators=[
+    phone = StringField('手机号码', validators=[
         Required(), Length(11), Regexp('[0-9]*$', 0,
-                                          'Phone must have only numbers')])
-    vertify = StringField('vertify', validators=[
+                                          '手机只能是11位数字')])
+    vertify = StringField('验证码', validators=[
         Required(), Length(6), Regexp('[A-Za-z0-9]*$', 0,
-                                          'vertify must have only letters, '
-                                          'numbers')])
-    submit = SubmitField('Submit')
+                                          '验证码只能是大小写字母, '
+                                          '数字')])
+    submit = SubmitField('提 交')
 
 class BalanceForm(BaseForm):
-    balance = FloatField('balance', validators=[
-        Required(), NumberRange(min=0, message="must greater than 0")])
-    submit = SubmitField('Submit')
+    balance = FloatField('余 额', validators=[
+        Required(), NumberRange(min=0, message="必须大于0")])
+    submit = SubmitField('提 交')
 

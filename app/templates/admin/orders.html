@@ -5,11 +5,15 @@
 
 {% block page_content %}
 {% from "helpers/_formhelpers.html" import pagination_widget %}
+  <h1>订单列表</h1>
   {% for order in orders %}
     <div class="row">
       <div class="col-lg-12 col-sm-12">
         <div class="row">
           <div class="col-lg-3 col-sm-6">
+            {% if current_user.is_administrator() %}
+              代理： {{order.user.username}} ||
+            {% endif %}
             {{ order.phone }}
           </div>
           <div class="col-lg-3 col-sm-6">

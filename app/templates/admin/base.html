@@ -1,6 +1,6 @@
 {% extends "bootstrap/base.html" %}
 
-{% block title %}Flasky{% endblock %}
+{% block title %}管理后台{% endblock %}
 
 {% block head %}
 {{ super() }}
@@ -21,7 +21,7 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-            <a class="navbar-brand" href="{{ url_for('admin.index') }}">Home</a>
+            <a class="navbar-brand" href="{{ url_for('admin.index') }}">首 页</a>
         </div>
         {% include 'admin/partials/_sidebar.html' %}
     </div>

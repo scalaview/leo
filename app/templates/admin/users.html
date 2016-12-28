@@ -1,0 +1,38 @@
+{% extends "admin/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}Console{% endblock %}
+
+{% block page_content %}
+{% from "helpers/_formhelpers.html" import pagination_widget %}
+  <h1>用户列表</h1>
+  {% for user in users %}
+    <div class="row">
+      <div class="col-lg-12 col-sm-12">
+        <div class="row">
+          <div class="col-lg-3 col-sm-6">
+            {{ user.username }}
+          </div>
+          <div class="col-lg-2 col-sm-6">
+            {{ user.role.name }}
+          </div>
+          <div class="col-lg-2 col-sm-6">
+            {{ user.balance }}
+          </div>
+          <div class="col-lg-3 col-sm-6">{{ moment(user.last_seen).format('YYYY/DD/MM HH:mm:ss') }}</div>
+          <div class="col-lg-2 col-sm-6">
+            <a href="{{ url_for('admin.user', id=user.id) }}">管 理</a>
+          </div>
+        </div>
+      </div>
+      <hr>
+    </div>
+  {% endfor %}
+
+  {% if pagination %}
+  <div class="pagination">
+      {{ pagination_widget(pagination, '.index') }}
+  </div>
+  {% endif %}
+{% endblock %}
+

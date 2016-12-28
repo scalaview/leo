@@ -27,6 +27,10 @@ def custom_401(error):
         return redirect(url_for("admin.index"))
 
 
+@admin.errorhandler(404)
+def custom_404(error):
+    return render_template('admin/404.html'), 404
+
 def can_do(permission):
     if not current_user.is_authenticated:
         abort(401)
@@ -198,6 +202,7 @@ def user(id):
     can_do(Permission.ADMINISTER)
     form = BalanceForm()
     user = User.query.get(id)
+    form.balance.data = user.balance
     if form.validate_on_submit():
         user.balance = form.balance.data
         db.session.add(user)
@@ -205,6 +210,16 @@ def user(id):
         flash("update success")
     return render_template('admin/user.html', form=form)
 
+
+@admin.route('/users', methods=['GET'])
+def users():
+    can_do(Permission.ADMINISTER)
+    page = request.args.get("page", 1, int)
+    pagination = User.query.filter(User.id != current_user.id).order_by(User.last_seen.desc())\
+        .paginate(page, per_page=current_app.config['FLASKY_POSTS_PER_PAGE'],
+            error_out=False)
+    users = pagination.items
+    return render_template('admin/users.html', users=users, pagination=pagination)
 
 @admin.route('/orders', methods=['GET'])
 @login_required
@@ -215,3 +230,15 @@ def orders():
             error_out=False)
     orders = pagination.items
     return render_template('admin/orders.html', orders=orders, pagination=pagination)
+
+@admin.route('/allorders', methods=['GET'])
+@login_required
+def allorders():
+    can_do(Permission.ADMINISTER)
+    page = request.args.get("page", 1, int)
+    pagination = Order.query.order_by(Order.updatedAt.desc())\
+        .paginate(page, per_page=current_app.config['FLASKY_POSTS_PER_PAGE'],
+            error_out=False)
+    orders = pagination.items
+    return render_template('admin/orders.html', orders=orders, pagination=pagination)
+
