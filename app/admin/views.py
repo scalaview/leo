@@ -31,6 +31,10 @@ def custom_401(error):
 def custom_404(error):
     return render_template('admin/404.html'), 404
 
+@admin.errorhandler(500)
+def custom_500(error):
+    return render_template('admin/500.html'), 500
+
 def can_do(permission):
     if not current_user.is_authenticated:
         abort(401)
