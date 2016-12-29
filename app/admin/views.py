@@ -202,12 +202,13 @@ def user(id):
     can_do(Permission.ADMINISTER)
     form = BalanceForm()
     user = User.query.get(id)
-    form.balance.data = user.balance
     if form.validate_on_submit():
         user.balance = form.balance.data
         db.session.add(user)
         db.session.commit()
         flash("更新成功")
+    else:
+        form.balance.data = user.balance
     return render_template('admin/user.html', form=form)
 
 
